@@ -8,6 +8,8 @@ namespace ProductApi.ProductServices
     {
         Task AddProduct(Product product);
         Task DeleteProduct(int id);
+        Task<Product?> UpdateProductPrice(int id, decimal newPrice);
+
 
 
 
