@@ -7,8 +7,10 @@ namespace OrderApi.OrderServices
 {
     public class OrderService(IConsumer<Null, string> consumer) : IOrderService
     {
-        private const string AddProductTopic = "add-product-topic";
-        private const string DeleteProductTopic = "delete-product-topic";
+        private const string AddProductTopic = "add-product-sqltopic";
+        private const string DeleteProductTopic = "delte_sql_topic";
+        private const string UpdatePriceTopic = "update-price";
+
 
         public List<Product> Products=[];
 
@@ -20,7 +22,7 @@ namespace OrderApi.OrderServices
         {
             await Task.Delay(10);
 
-            consumer.Subscribe([AddProductTopic, DeleteProductTopic]);
+            consumer.Subscribe([AddProductTopic, DeleteProductTopic,UpdatePriceTopic]);
 
 
             while (true)
@@ -35,13 +37,25 @@ namespace OrderApi.OrderServices
                         Products.Add(product!);
 
                     }
-                    else
+                    else if (response.Topic == DeleteProductTopic)
                     {
+                        Products.Remove(Products.FirstOrDefault(p => p.Id == int.Parse(response.Message.Value))!);
+                    }
+                    // Check if the topic is 'UpdatePriceTopic'
+                    else if (response.Topic == UpdatePriceTopic)
+                    {
+                        // Deserialize the message to get product ID and new price
+                        var updateMessage = JsonSerializer.Deserialize<ProductUpdateMessage>(response.Message.Value);
 
-                        Products.Remove(Products.
-                            FirstOrDefault(p => p.Id == int.Parse(response.Message.Value))!);
-
-
+                        if (updateMessage != null)
+                        {
+                            // Find the product and update its price
+                            var productToUpdate = Products.FirstOrDefault(p => p.Id == updateMessage.ProductId);
+                            if (productToUpdate != null)
+                            {
+                                productToUpdate.Price = updateMessage.NewPrice;
+                            }
+                        }
                     }
 
                     ConsoleProduct();
@@ -49,6 +63,14 @@ namespace OrderApi.OrderServices
 
                 }
             }
+
+        }
+        private void ConsoleProduct()
+        {
+            Console.Clear();
+            foreach (var item in Products)
+                Console.WriteLine($"ID: {item.Id}, Name: {item.Name}, Price: {item.Price}");
+
 
         }
 
@@ -82,15 +104,11 @@ namespace OrderApi.OrderServices
         public List<Product> GetProducts() => Products;
 
 
-       
 
-        private void ConsoleProduct()
+        public class ProductUpdateMessage
         {
-            Console.Clear();
-            foreach (var item in Products)
-                Console.WriteLine($"ID: {item.Id}, Name: {item.Name}, Price: {item.Price}");
-
-
+            public int ProductId { get; set; }
+            public decimal NewPrice { get; set; }
         }
 
     }
